@@ -14,10 +14,15 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 import courses.pluralsight.com.tabianconsulting.R;
-
+import courses.pluralsight.com.tabianconsulting.models.Project;
+import courses.pluralsight.com.tabianconsulting.utility.ResultCodes;
 
 /**
  * Created by User on 4/16/2018.
@@ -69,7 +74,32 @@ public class NewProjectActivity extends AppCompatActivity implements
             Toast.makeText(this, "fill in the fields", Toast.LENGTH_SHORT).show();
         }
         else{
+            FirebaseFirestore db = FirebaseFirestore.getInstance();
+            DocumentReference newProjectRef = db.collection(getString(R.string.collection_projects)).document();
 
+            String userId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+            Project project = new Project(
+                    projectName,
+                    projectDescription,
+                    userId,
+                    null,
+                    "",
+                    newProjectRef.getId()
+            );
+
+            newProjectRef.set(project).addOnCompleteListener(new OnCompleteListener<Void>() {
+                @Override
+                public void onComplete(@NonNull Task<Void> task) {
+                    if(task.isSuccessful()){
+                        Intent intent = new Intent();
+                        intent.putExtra(getString(R.string.intent_snackbar_message), getString(R.string.created_new_project));
+                        setResult(ResultCodes.SNACKBAR_RESULT_CODE, intent);
+                        finish();
+                    }else{
+                        Snackbar.make(getCurrentFocus().getRootView(), getString(R.string.failed_create_new_project),Snackbar.LENGTH_LONG);
+                    }
+                }
+            });
         }
     }
 
