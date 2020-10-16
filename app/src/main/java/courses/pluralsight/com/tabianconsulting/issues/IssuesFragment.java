@@ -288,9 +288,7 @@ public class IssuesFragment extends Fragment implements
             }
         }
 
-        mIssues.removeAll(deletedIssues);
-        mIssuesRecyclerViewAdapter.notifyDataSetChanged();
-        executeBatchCommit(batch);
+        deleteAttachments(deletedIssues, batch, null);
     }
 
     public void deleteAttachments(final ArrayList<Issue> deletedIssues, final WriteBatch batch, final Project project){
@@ -357,6 +355,7 @@ public class IssuesFragment extends Fragment implements
         }
         else{
             if(batch == null){
+                //just called to remove the project (code reuse?) --> (bad code)
                 Log.d(TAG, "deleteAttachments: batch is NULL.");
                 deleteIssuesFromProject(deletedIssues, project);
             }
