@@ -42,7 +42,9 @@ import java.util.ArrayList;
 
 import courses.pluralsight.com.tabianconsulting.ChangePhotoDialog;
 import courses.pluralsight.com.tabianconsulting.R;
+import courses.pluralsight.com.tabianconsulting.models.Issue;
 import courses.pluralsight.com.tabianconsulting.models.Project;
+import courses.pluralsight.com.tabianconsulting.utility.ResultCodes;
 import courses.pluralsight.com.tabianconsulting.utility.SpinnerResource;
 
 
@@ -152,25 +154,62 @@ public class NewIssueActivity extends AppCompatActivity implements
         else{
             showProgressBar();
 
-            // Find the Project id
-            String temp = "";
-            for(Project project : mProjects){
-                if(project.getName().equals(mAssignToProject.getText().toString())){
-                    temp = project.getProject_id();
-                    break;
+//            // Find the Project id
+//            String temp = "";
+//            for(Project project : mProjects){
+//                if(project.getName().equals(mAssignToProject.getText().toString())){
+//                    temp = project.getProject_id();
+//                    break;
+//                }
+//            }
+//            final String projectId = temp;
+//
+//            if(projectId.equals("")){
+//                Toast.makeText(this, "select a valid project", Toast.LENGTH_SHORT).show();
+//                mAssignToProject.setError(getString(R.string.select_a_project));
+//                hideProgressBar();
+//            }
+//            else{
+//
+//            }
+
+            FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+            String projectId = "VPcNkkUUeqplop1fUy0F";
+
+            DocumentReference newIssueRef = db.collection(getString(R.string.collection_projects))
+                    .document(projectId)
+                    .collection(getString(R.string.collection_issues))
+                    .document();
+
+            String userId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+
+            String issueId = newIssueRef.getId();
+            Issue issue = new Issue();
+
+            issue.setAssignee("none");
+            issue.setDescription(mDescription.getText().toString());
+            issue.setIssue_id(issueId);
+            issue.setIssue_type(((SpinnerAdapter)mIssueTypeSpinner.getAdapter()).getSelectedText());
+            issue.setPriority(Issue.getPriorityInteger(((SpinnerAdapter)mIssueTypeSpinner.getAdapter()).getSelectedText()));
+            issue.setReporter(userId);
+            issue.setStatus(Issue.IDLE);
+            issue.setSummary(mSummary.getText().toString());
+
+            newIssueRef.set(issue).addOnCompleteListener(new OnCompleteListener<Void>() {
+                @Override
+                public void onComplete(@NonNull Task<Void> task) {
+                    if(task.isSuccessful()){
+                        hideProgressBar();
+                        Intent intent = new Intent();
+                        intent.putExtra(getString(R.string.intent_snackbar_message), getString(R.string.created_new_issue));
+                        setResult(ResultCodes.SNACKBAR_RESULT_CODE, intent);
+                        finish();
+                    }else{
+                        Snackbar.make(getCurrentFocus().getRootView(), getString(R.string.failed_to_create_new_issue),Snackbar.LENGTH_LONG);
+                    }
                 }
-            }
-            final String projectId = temp;
-
-            if(projectId.equals("")){
-                Toast.makeText(this, "select a valid project", Toast.LENGTH_SHORT).show();
-                mAssignToProject.setError(getString(R.string.select_a_project));
-                hideProgressBar();
-            }
-            else{
-
-            }
-
+            });
         }
     }
 
