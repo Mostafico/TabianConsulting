@@ -2,10 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/TabianConsulting.iml" filepath="$PROJECT_DIR$/TabianConsulting.iml" />
-      <module fileurl="file://F:\AndroidStudio Projects\TabianConsulting\TabianConsulting.iml" filepath="F:\AndroidStudio Projects\TabianConsulting\TabianConsulting.iml" />
-      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
-      <module fileurl="file://F:\AndroidStudio Projects\TabianConsulting\app\app.iml" filepath="F:\AndroidStudio Projects\TabianConsulting\app\app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/TabianConsultingTico.iml" filepath="$PROJECT_DIR$/.idea/TabianConsultingTico.iml" group="TabianConsultingTico" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/app.iml" group="TabianConsultingTico/app" />
     </modules>
   </component>
 </project>
