@@ -33,6 +33,7 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
@@ -53,7 +54,8 @@ import courses.pluralsight.com.tabianconsulting.utility.SpinnerResource;
  */
 
 public class NewIssueActivity extends AppCompatActivity implements
-        View.OnClickListener{
+        View.OnClickListener,
+        View.OnTouchListener{
 
     private static final String TAG = "NewIssueActivity";
     private static final int REQUEST_CODE = 1234;
@@ -68,7 +70,6 @@ public class NewIssueActivity extends AppCompatActivity implements
 
 
     //vars
-    private boolean mStoragePermissions;
     private ArrayList<Project> mProjects = new ArrayList<>();
 
 
@@ -87,10 +88,12 @@ public class NewIssueActivity extends AppCompatActivity implements
 
         mClose.setOnClickListener(this);
         mCreate.setOnClickListener(this);
+        mAssignToProject.setOnTouchListener(this);
 
         setupActionBar();
         initIssueTypeSpinner();
         initPrioritySpinner();
+        initProjectAutoCompleteTextView();
     }
 
     private void setupActionBar(){
@@ -99,6 +102,61 @@ public class NewIssueActivity extends AppCompatActivity implements
         }
     }
 
+    private void initProjectAutoCompleteTextView(){
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+        CollectionReference projectsRef = db.collection(getString(R.string.collection_projects));
+
+        projectsRef
+                .get()
+                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                    @Override
+                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                        if(task.isSuccessful()){
+                            Log.d(TAG, "onComplete: got projects");
+                            int i = 0;
+                            String[] projects = new String[task.getResult().size()];
+                            for (QueryDocumentSnapshot document : task.getResult()) {
+                                Project project = document.toObject(Project.class);
+                                mProjects.add(project);
+                                projects[i] = project.getName();
+                                i++;
+                            }
+
+                            ArrayAdapter<String> adapter =
+                                    new ArrayAdapter<String>(NewIssueActivity.this, android.R.layout.simple_list_item_1, projects);
+                            mAssignToProject.setAdapter(adapter);
+                            initTextWatcher();
+                        }
+                        else{
+                            Toast.makeText(NewIssueActivity.this, "error getting projects", Toast.LENGTH_SHORT).show();
+                            Log.d(TAG, "onComplete: error getting project names.", task.getException());
+                        }
+                    }
+                });
+    }
+
+    private void initTextWatcher(){
+        mAssignToProject.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable editable) {
+                if(editable.toString().equals("")){
+                    mAssignToProject.setError(getString(R.string.select_a_project));
+                }
+                else{
+                    mAssignToProject.setError(null);
+                }
+            }
+        });
+    }
 
     private void initIssueTypeSpinner(){
         final String[] issueTypes = SpinnerResource.issue_type_spinner;
@@ -154,62 +212,68 @@ public class NewIssueActivity extends AppCompatActivity implements
         else{
             showProgressBar();
 
-//            // Find the Project id
-//            String temp = "";
-//            for(Project project : mProjects){
-//                if(project.getName().equals(mAssignToProject.getText().toString())){
-//                    temp = project.getProject_id();
-//                    break;
-//                }
-//            }
-//            final String projectId = temp;
-//
-//            if(projectId.equals("")){
-//                Toast.makeText(this, "select a valid project", Toast.LENGTH_SHORT).show();
-//                mAssignToProject.setError(getString(R.string.select_a_project));
-//                hideProgressBar();
-//            }
-//            else{
-//
-//            }
+            // Find the Project id
+            String temp = "";
+            for(Project project : mProjects){
+                if(project.getName().equals(mAssignToProject.getText().toString())){
+                    temp = project.getProject_id();
+                    break;
+                }
+            }
+            final String projectId = temp;
 
-            FirebaseFirestore db = FirebaseFirestore.getInstance();
+            if(projectId.equals("")){
+                Toast.makeText(this, "select a valid project", Toast.LENGTH_SHORT).show();
+                mAssignToProject.setError(getString(R.string.select_a_project));
+                hideProgressBar();
+            }
+            else{
+                // get the document reference
+                FirebaseFirestore db = FirebaseFirestore.getInstance();
 
-            String projectId = "VPcNkkUUeqplop1fUy0F";
+                DocumentReference newIssueRef = db
+                        .collection(getString(R.string.collection_projects))
+                        .document(projectId)
+                        .collection(getString(R.string.collection_issues))
+                        .document();
 
-            DocumentReference newIssueRef = db.collection(getString(R.string.collection_projects))
-                    .document(projectId)
-                    .collection(getString(R.string.collection_issues))
-                    .document();
+                // Get user id of issue reporter
+                String userId = FirebaseAuth.getInstance().getCurrentUser().getUid();
 
-            String userId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+                // Create a new id for the issue
+                final String issueId = newIssueRef.getId();
 
-            String issueId = newIssueRef.getId();
-            Issue issue = new Issue();
+                // Create the issue and add send to database
+                Issue issue = new Issue();
+                issue.setAssignee("none");
+                issue.setDescription(mDescription.getText().toString());
+                issue.setIssue_id(issueId);
+                issue.setIssue_type(((SpinnerAdapter)mIssueTypeSpinner.getAdapter()).getSelectedText());
+                issue.setPriority(Issue.getPriorityInteger(((SpinnerAdapter)mPrioritySpinner.getAdapter()).getSelectedText()));
+                issue.setReporter(userId);
+                issue.setStatus(Issue.IDLE);
+                issue.setSummary(mSummary.getText().toString());
+                issue.setProject_id(projectId);
 
-            issue.setAssignee("none");
-            issue.setDescription(mDescription.getText().toString());
-            issue.setIssue_id(issueId);
-            issue.setIssue_type(((SpinnerAdapter)mIssueTypeSpinner.getAdapter()).getSelectedText());
-            issue.setPriority(Issue.getPriorityInteger(((SpinnerAdapter)mIssueTypeSpinner.getAdapter()).getSelectedText()));
-            issue.setReporter(userId);
-            issue.setStatus(Issue.IDLE);
-            issue.setSummary(mSummary.getText().toString());
-
-            newIssueRef.set(issue).addOnCompleteListener(new OnCompleteListener<Void>() {
-                @Override
-                public void onComplete(@NonNull Task<Void> task) {
-                    if(task.isSuccessful()){
+                newIssueRef.set(issue).addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
                         hideProgressBar();
                         Intent intent = new Intent();
                         intent.putExtra(getString(R.string.intent_snackbar_message), getString(R.string.created_new_issue));
                         setResult(ResultCodes.SNACKBAR_RESULT_CODE, intent);
                         finish();
-                    }else{
-                        Snackbar.make(getCurrentFocus().getRootView(), getString(R.string.failed_to_create_new_issue),Snackbar.LENGTH_LONG);
                     }
-                }
-            });
+                }).addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        hideProgressBar();
+                        Snackbar.make(getCurrentFocus().getRootView(), getString(R.string.failed_to_create_new_issue), Snackbar.LENGTH_LONG).show();
+                    }
+                });
+            }
+
+
         }
     }
 
@@ -264,6 +328,19 @@ public class NewIssueActivity extends AppCompatActivity implements
     }
 
 
+    @Override
+    public boolean onTouch(View view, MotionEvent motionEvent) {
+
+        switch (view.getId()){
+            case R.id.assign_to_project:{
+                showSoftKeyboard(view);
+                mAssignToProject.showDropDown();
+                return true;
+            }
+
+        }
+        return false;
+    }
 }
 
 
